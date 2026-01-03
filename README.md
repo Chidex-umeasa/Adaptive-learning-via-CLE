@@ -184,3 +184,5 @@ AI for Education
 Alex Chidera Umeasalugo
 Undergraduate Computer Science Researcher
 Interests: AI for Education, Distributed Systems, Human-Centered AI
+
+This project is still in progress
