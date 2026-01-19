@@ -61,3 +61,4 @@ def get_load(session_id: str, end_ts_ms: int, db: Session = Depends(get_db)):
         "confidence": conf,
         "recommended_action": action
     }
+
