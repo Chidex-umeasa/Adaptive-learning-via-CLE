@@ -1,188 +1,188 @@
 # Adaptive Learning via Cognitive Load Estimation
 
-An AI-driven, web-based Computer Science tutoring system that **estimates learners’ cognitive load in real time** using interaction telemetry and privacy-preserving webcam features, and **adapts instruction dynamically** to optimize learning outcomes.
+[![CI](https://github.com/yourusername/adaptive-load-tutor/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/adaptive-load-tutor/actions)
 
-This project is part of a broader **AI + Education + Systems research portfolio**, focusing on intelligent tutoring systems, human-centered AI, and adaptive learning infrastructure.
+An AI-driven, web-based CS tutoring system that **estimates learners' cognitive load in real time** using interaction telemetry and privacy-preserving webcam features, then **adapts instruction dynamically** to optimize learning outcomes.
 
----
+## Architecture
 
-## 🚀 Motivation
+```mermaid
+graph LR
+    A[Browser] -->|Telemetry + Webcam| B[FastAPI]
+    B -->|Store| C[(PostgreSQL)]
+    B -->|Features| D[ML Model]
+    D -->|Load Score| B
+    B -->|Adaptive Response| A
+    E[ML Pipeline] -->|Train| D
+```
 
-Learners often struggle not because content is too difficult, but because **cognitive load is poorly managed**. Traditional online learning systems are static: they do not respond to frustration, overload, or disengagement in real time.
+> See [docs/architecture.md](docs/architecture.md) for full system documentation and [docs/diagrams/](docs/diagrams/) for Mermaid source files.
 
-This project explores:
+## Features
 
-- How **cognitive load can be inferred** from behavioral and visual signals
-- How **adaptive systems** can respond dynamically to learner state
-- How to design **privacy-aware, scalable learning infrastructure**
+- **Real-time cognitive load estimation** from 14 behavioral + visual signals
+- **Adaptive problem sequencing** — difficulty adjusts based on estimated load
+- **Privacy-first webcam processing** — Face Mesh runs in-browser, only 6 numeric features transmitted
+- **17 CS problems** across 5 categories (basics, strings, arrays, recursion, data structures)
+- **ML training pipeline** — GradientBoosting/RandomForest/Ridge with 5-fold CV
+- **A/B testing framework** — deterministic hash-based variant assignment for research
+- **Research dashboard** — load timelines, feature correlations, experiment comparisons
+- **JWT authentication** with multi-user session tracking
+- **Docker deployment** — one command startup with PostgreSQL
 
----
+## Quick Start
 
-## 🧠 Core Research Questions
-
-1. Can cognitive load be reliably estimated using **software-only telemetry** and **on-device webcam features**?
-2. Which signals (errors, pauses, gaze stability, head motion) correlate most with mental effort?
-3. Does **load-aware adaptation** improve learning efficiency, retention, or user experience?
-4. How can personalization be achieved with minimal labeled data?
-
----
-
-## 🏗️ System Architecture
-
-**Frontend (Next.js / React)**
-- Interactive CS tutoring interface
-- Code editor with real-time telemetry logging
-- Webcam-based feature extraction (on-device, no video storage)
-- Live “Cognitive Load Meter”
-
-**Backend (FastAPI / Python)**
-- Event-sourced telemetry ingestion
-- Webcam feature ingestion
-- Time-windowed feature aggregation
-- Cognitive load estimation service
-- Adaptive decision engine
-
-**Storage**
-- SQLite (MVP) / PostgreSQL (production-ready)
-- Event, feature, label, and session tables
-
----
-
-## 📊 Cognitive Load Estimation
-
-### Input Signals
-
-**Interaction Telemetry**
-- Compile/runtime errors
-- Wrong vs correct attempts
-- Hint usage frequency
-- Typing pauses and corrections
-- Action density and retries
-
-**Webcam-Derived Features (Privacy-Preserving)**
-- Face presence ratio
-- Head motion variability
-- Blink rate (proxy for fatigue/effort)
-- Gaze stability (optional extension)
-
-> ⚠️ No raw video or images are stored. All processing happens client-side.
-
----
-
-## 🔄 Adaptive Learning Loop
-
-1. Learner interacts with CS problem
-2. Telemetry + webcam features are collected
-3. Cognitive load is estimated in real time
-4. System adapts instruction by:
-   - Adjusting difficulty
-   - Offering hints or worked examples
-   - Decomposing tasks
-   - Modifying pacing
-
----
-
-## 🧪 Evaluation Plan
-
-**Model Evaluation**
-- Correlation with self-reported effort (1–7 scale)
-- Classification accuracy for High / Medium / Low load
-- Confidence calibration
-
-**Learning Evaluation**
-- A/B testing: adaptive vs static tutor
-- Time-to-correct
-- Retention performance
-- Dropout and frustration rates
-
----
-
-## 🧰 Tech Stack
-
-**Frontend**
-- Next.js (React, TypeScript)
-- Monaco / CodeMirror (editor)
-- MediaPipe Face Mesh (webcam features)
-
-**Backend**
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Uvicorn
-
-**ML / Data**
-- Python (scikit-learn, pandas)
-- Windowed feature aggregation
-- Rule-based baseline → ML models → contextual bandits (planned)
-
----
-
-## 📁 Repository Structure
-
-adaptive-load-tutor/
-├── backend/
-│ ├── app/
-│ │ ├── main.py # FastAPI app
-│ │ ├── db.py # DB config
-│ │ ├── models.py # ORM models
-│ │ ├── schemas.py # API schemas
-│ │ ├── features.py # Load estimation logic
-│ │ └── settings.py
-│ └── requirements.txt
-│
-├── frontend/
-│ ├── src/
-│ │ ├── app/
-│ │ ├── components/
-│ │ └── lib/
-│ └── package.json
-│
-└── README.md
-
-
----
-
-## ⚙️ Running the Project (MVP)
-
-### Backend
+### Option 1: Docker (Recommended)
 ```bash
+git clone https://github.com/yourusername/adaptive-load-tutor.git
+cd adaptive-load-tutor
+docker compose up
+# Open http://localhost:3000
+```
+
+### Option 2: Local Development
+```bash
+# Backend
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
+source .venv/bin/activate    # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
-Frontend
+# Frontend (new terminal)
 cd frontend
 npm install
 npm run dev
-Open: http://localhost:3000
+# Open http://localhost:3000
+```
 
-🔒 Ethics & Privacy
-Explicit consent required for webcam features
-No raw video or biometric data stored
-Features are numeric, aggregated, and anonymized
-Designed for IRB-compatible research deployment
+### ML Pipeline
+```bash
+cd ml
+pip install -r requirements.txt
+python generate_synthetic_data.py   # Generate training data
+python train.py                      # Train + evaluate models
+# Model saved to ml/artifacts/load_model.joblib
+```
 
-🛣️ Roadmap
- Replace heuristic load model with ML estimator
- Personalized load calibration per learner
- Contextual bandit / RL-based adaptation policy
- Gaze estimation with calibration
- Retention-based learning evaluation
- Research paper / poster submission
+## Tech Stack
 
-🎓 Research Context
-This project aligns with work in:
-Intelligent Tutoring Systems (ITS)
-Human-Computer Interaction (HCI)
-Learning Sciences
-Adaptive Systems
-AI for Education
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, Recharts |
+| Backend | FastAPI, SQLAlchemy 2.0, Pydantic 2.x |
+| Auth | JWT (python-jose) + bcrypt (passlib) |
+| Database | SQLite (dev) / PostgreSQL 16 (prod) |
+| ML | scikit-learn, pandas, numpy, joblib |
+| Webcam | FaceMesh (in-browser), EAR blink detection |
+| CI/CD | GitHub Actions, Docker Compose, pytest |
+| Migrations | Alembic |
 
-👤 Author
-Alex Chidera Umeasalugo
+## Cognitive Load Signals
+
+| Signal | Source | What It Measures |
+|--------|--------|-----------------|
+| Compile errors | Code evaluation | Syntax understanding |
+| Wrong answers | Test runner | Conceptual gaps |
+| Typing pauses | Keystroke timing | Hesitation / thinking |
+| Delete ratio | Keystroke metrics | Uncertainty / backtracking |
+| Hint requests | UI interaction | Help-seeking behavior |
+| Face presence | Webcam | Attention / engagement |
+| Gaze dispersion | Webcam | Visual search / confusion |
+| Blink rate | Webcam (EAR) | Fatigue / cognitive effort |
+| Head motion | Webcam | Restlessness / frustration |
+
+## Project Structure
+
+```
+adaptive-load-tutor/
+├── .github/workflows/ci.yml          # CI pipeline
+├── docker-compose.yml                 # One-command deployment
+├── backend/
+│   ├── Dockerfile
+│   ├── alembic/                       # Database migrations
+│   ├── app/
+│   │   ├── main.py                    # FastAPI app + routes
+│   │   ├── auth.py                    # JWT authentication
+│   │   ├── models.py                  # 8 ORM models
+│   │   ├── features.py                # Load aggregation + heuristic
+│   │   ├── ml_inference.py            # ML model loading + prediction
+│   │   ├── problems.py                # 17-problem bank
+│   │   ├── sequencer.py               # Adaptive problem selection
+│   │   ├── ab_testing.py              # A/B experiment engine
+│   │   └── routers/                   # auth, problems, analytics, experiments
+│   └── tests/                         # pytest suite (10 test files)
+├── frontend/
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Tutor.tsx              # Main two-column tutor UI
+│   │   │   ├── CodeEditor.tsx         # Editor with keystroke metrics
+│   │   │   ├── LoadGauge.tsx          # SVG cognitive load gauge
+│   │   │   ├── WebcamFeatures.tsx     # Real webcam integration
+│   │   │   ├── ProblemDescription.tsx # Problem display
+│   │   │   ├── HintPanel.tsx          # Progressive hints
+│   │   │   └── dashboard/            # Analytics components
+│   │   ├── context/AuthContext.tsx     # Auth state management
+│   │   └── lib/
+│   │       ├── faceMeshProcessor.ts   # Webcam feature extraction
+│   │       └── types.ts              # Shared TypeScript types
+│   └── __tests__/                     # Jest test suite
+├── ml/
+│   ├── generate_synthetic_data.py     # Bootstrap training data
+│   ├── export_training_data.py        # Extract from database
+│   ├── train.py                       # Model training + evaluation
+│   └── artifacts/                     # Saved models + reports
+└── docs/
+    ├── architecture.md                # System documentation
+    ├── RESEARCH_PROTOCOL.md           # Study design + IRB considerations
+    └── diagrams/                      # Mermaid architecture diagrams
+```
+
+## Research Design
+
+This system supports formal A/B studies comparing adaptive vs. static tutoring. See [docs/RESEARCH_PROTOCOL.md](docs/RESEARCH_PROTOCOL.md) for:
+- Between-subjects study design (Control / Heuristic / ML Model)
+- Participant criteria and recruitment protocol
+- Measures: learning gain, time-to-correct, completion rate, hint usage
+- Statistical analysis plan (ANOVA, effect sizes, feature correlations)
+- IRB considerations and privacy safeguards
+
+## API Documentation
+
+The API is fully documented via FastAPI's auto-generated OpenAPI docs:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+See [docs/architecture.md](docs/architecture.md) for the complete endpoint reference.
+
+## Ethics & Privacy
+
+- **No raw video stored** — all webcam processing happens in-browser
+- **Explicit consent** required for webcam features (opt-in toggle)
+- **Feature-only transmission** — only 6 numeric values per 2-second window
+- **Anonymized sessions** — random UUIDs, no PII in telemetry
+- **Data minimization** — designed for IRB-compatible research deployment
+
+## Running Tests
+
+```bash
+# Backend
+cd backend
+pip install -r requirements-dev.txt
+pytest --cov=app -v
+
+# Frontend
+cd frontend
+npm test
+```
+
+## Author
+
+**Alex Chidera Umeasalugo**
 Undergraduate Computer Science Researcher
-Interests: AI for Education, Distributed Systems, Human-Centered AI
+Interests: AI for Education, Intelligent Tutoring Systems, Human-Centered AI, Distributed Systems
 
-This project is still in progress
+## License
+
+This project is for academic and research purposes.
