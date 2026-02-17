@@ -1,0 +1,77 @@
+erDiagram
+    USERS {
+        string id PK
+        string email UK
+        string display_name
+        string password_hash
+        datetime created_at
+    }
+
+    SESSIONS {
+        string id PK
+        string user_id FK
+        datetime created_at
+        boolean consent_telemetry
+        boolean consent_webcam
+    }
+
+    EVENTS {
+        int id PK
+        string session_id FK
+        int ts_ms
+        string name
+        json payload
+    }
+
+    WEBCAM_FEATURES {
+        int id PK
+        string session_id FK
+        int ts_ms
+        float face_present
+        float gaze_on_screen
+        float gaze_dispersion
+        float blink_rate
+        float head_motion
+        int away_events
+    }
+
+    EFFORT_LABELS {
+        int id PK
+        string session_id FK
+        int ts_ms
+        int rating_1_7
+    }
+
+    SUBMISSIONS {
+        int id PK
+        string session_id FK
+        string problem_id
+        text code
+        boolean correct
+        int tests_passed
+        int tests_total
+        datetime submitted_at
+    }
+
+    EXPERIMENTS {
+        string id PK
+        string name
+        json config
+        boolean active
+        datetime created_at
+    }
+
+    EXPERIMENT_ASSIGNMENTS {
+        int id PK
+        string session_id FK
+        string experiment_id FK
+        string variant
+    }
+
+    USERS ||--o{ SESSIONS : "has"
+    SESSIONS ||--o{ EVENTS : "generates"
+    SESSIONS ||--o{ WEBCAM_FEATURES : "produces"
+    SESSIONS ||--o{ EFFORT_LABELS : "rates"
+    SESSIONS ||--o{ SUBMISSIONS : "submits"
+    SESSIONS ||--o| EXPERIMENT_ASSIGNMENTS : "assigned"
+    EXPERIMENTS ||--o{ EXPERIMENT_ASSIGNMENTS : "includes"

@@ -1,0 +1,47 @@
+graph TD
+    subgraph Browser["Browser (Next.js Client)"]
+        UI[Tutor UI<br/>Monaco Editor + Load Gauge]
+        WC[WebcamFeatures<br/>FaceMesh Processor]
+        TEL[Telemetry Buffer<br/>Event Batching]
+    end
+
+    subgraph Backend["FastAPI Backend"]
+        API[REST API<br/>Endpoints]
+        AUTH[Auth Module<br/>JWT + bcrypt]
+        SEQ[Adaptive Sequencer<br/>Load-Aware Selection]
+        FEAT[Feature Aggregator<br/>10s Windows]
+        ML[ML Inference<br/>Model or Heuristic]
+        AB[A/B Engine<br/>Hash-Based Assignment]
+    end
+
+    subgraph Storage["Data Layer"]
+        DB[(PostgreSQL / SQLite<br/>Sessions, Events, Webcam,<br/>Labels, Submissions)]
+    end
+
+    subgraph MLPipeline["ML Pipeline (Offline)"]
+        EXPORT[Export Training Data]
+        TRAIN[Train Models<br/>GBR, RF, Ridge]
+        ARTIFACTS[Model Artifacts<br/>joblib + metrics]
+    end
+
+    UI -->|Keystrokes, Clicks| TEL
+    WC -->|Face Features| TEL
+    TEL -->|POST /events/batch| API
+    WC -->|POST /webcam/batch| API
+    UI -->|POST /problems/submit| API
+    UI -->|GET /load/:id| API
+
+    API --> AUTH
+    API --> SEQ
+    API --> FEAT
+    FEAT --> ML
+    API --> AB
+    API --> DB
+
+    DB --> EXPORT
+    EXPORT --> TRAIN
+    TRAIN --> ARTIFACTS
+    ARTIFACTS -.->|Load at startup| ML
+
+    ML -->|Score + Action| API
+    API -->|Adaptive Response| UI

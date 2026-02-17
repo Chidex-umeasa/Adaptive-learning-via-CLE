@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant L as Learner
+    participant UI as Next.js Frontend
+    participant API as FastAPI Backend
+    participant DB as Database
+    participant ML as ML Model
+
+    L->>UI: Types code / clicks buttons
+    UI->>UI: Buffer keystroke events (1.5s)
+    UI->>API: POST /events/batch
+    API->>DB: Store events
+
+    opt Webcam Enabled
+        UI->>UI: FaceMesh extracts features (2s)
+        UI->>API: POST /webcam/batch
+        API->>DB: Store webcam features
+    end
+
+    loop Every 3 seconds
+        UI->>API: GET /load/{session_id}
+        API->>DB: Query last 10s of events + webcam
+        API->>API: Aggregate features
+        API->>ML: predict_load(features)
+        ML-->>API: score, label, confidence, action
+        API-->>UI: LoadEstimateOut
+        UI->>UI: Update gauge + adapt UI
+    end
+
+    L->>UI: Submit solution
+    UI->>API: POST /problems/submit
+    API->>API: Run tests via Node.js subprocess
+    API->>DB: Store submission result
+    API->>API: Select next problem based on load
+    API-->>UI: SubmissionOut + next_problem_id
+
+    L->>UI: Rate effort (1-7)
+    UI->>API: POST /labels/effort
+    API->>DB: Store ground truth label
