@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alt_user
+      POSTGRES_PASSWORD: alt_pass
+      POSTGRES_DB: adaptive_load
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alt_user -d adaptive_load"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://alt_user:alt_pass@db:5432/adaptive_load
+      SECRET_KEY: dev-secret-change-me
+      ALLOWED_ORIGINS: "http://localhost:3000"
+    volumes:
+      - ./backend/app:/code/app
+      - ./ml/artifacts:/code/ml_artifacts
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+
+volumes:
+  pgdata:
