@@ -1,16 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-type WebcamFeature = {
-  ts_ms: number;
-  face_present: number;
-  gaze_on_screen: number;
-  gaze_dispersion: number;
-  blink_rate: number;
-  head_motion: number;
-  away_events: number;
-};
+import { FaceMeshProcessor } from "../lib/faceMeshProcessor";
+import type { WebcamFeature } from "../lib/types";
 
 export default function WebcamFeatures({
   enabled,
@@ -20,40 +12,72 @@ export default function WebcamFeatures({
   onFeatures: (f: WebcamFeature) => void;
 }) {
   const [status, setStatus] = useState<"off" | "starting" | "on" | "blocked">("off");
-  const intervalRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const processorRef = useRef<FaceMeshProcessor | null>(null);
 
   useEffect(() => {
     if (!enabled) {
+      if (processorRef.current) {
+        processorRef.current.stop();
+        processorRef.current = null;
+      }
       setStatus("off");
-      if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
 
-    // MVP stub: simulate features every 2s
-    setStatus("on");
-    intervalRef.current = setInterval(() => {
-      onFeatures({
-        ts_ms: Date.now(),
-        face_present: 0.9,
-        gaze_on_screen: 0.8,
-        gaze_dispersion: Math.random() * 0.4,
-        blink_rate: 12 + Math.random() * 6,
-        head_motion: Math.random() * 0.8,
-        away_events: Math.random() < 0.1 ? 1 : 0,
-      });
-    }, 2000);
+    let cancelled = false;
+
+    async function start() {
+      if (!videoRef.current) return;
+      setStatus("starting");
+
+      try {
+        const processor = new FaceMeshProcessor(videoRef.current, onFeatures);
+        await processor.initialize();
+        if (cancelled) {
+          processor.stop();
+          return;
+        }
+        processorRef.current = processor;
+        setStatus("on");
+      } catch (err: any) {
+        if (!cancelled) {
+          setStatus("blocked");
+          console.warn("Webcam access denied:", err.message);
+        }
+      }
+    }
+
+    start();
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      cancelled = true;
+      if (processorRef.current) {
+        processorRef.current.stop();
+        processorRef.current = null;
+      }
     };
   }, [enabled, onFeatures]);
 
   return (
-    <div className="text-sm">
-      <div className="font-medium">Webcam: {status}</div>
-      <div className="opacity-70">
-        MVP is simulated. Next step: MediaPipe Face Mesh → real face/blink/head motion features.
+    <div className="text-sm space-y-2">
+      <div className="flex items-center gap-2">
+        <span
+          className={`inline-block w-2.5 h-2.5 rounded-full ${
+            status === "on" ? "bg-green-400 animate-pulse" :
+            status === "starting" ? "bg-yellow-400 animate-pulse" :
+            status === "blocked" ? "bg-red-400" :
+            "bg-gray-500"
+          }`}
+        />
+        <span className="font-medium">
+          Webcam: {status === "on" ? "Active" : status === "starting" ? "Starting..." : status === "blocked" ? "Permission denied" : "Off"}
+        </span>
       </div>
+      <p className="text-xs text-gray-400">
+        Privacy-safe: only numeric features extracted. No video data is stored or transmitted.
+      </p>
+      <video ref={videoRef} className="hidden" playsInline muted />
     </div>
   );
 }
