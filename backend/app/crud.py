@@ -113,12 +113,20 @@ def get_all_sessions_summary(db: Session, limit: int = 100, offset: int = 0) -> 
             )
         ).scalar()
 
+        mean_load = db.execute(
+            select(func.avg(models.EffortLabel.rating_1_7)).where(
+                models.EffortLabel.session_id == s.id
+            )
+        ).scalar()
+        # Normalize effort rating 1-7 to 0-1 load score
+        mean_load_normalized = round((mean_load - 1) / 6, 3) if mean_load is not None else None
+
         results.append({
             "session_id": s.id,
             "user_email": s.user.email if s.user else None,
             "created_at": s.created_at.isoformat(),
             "event_count": event_count,
-            "mean_load": None,
+            "mean_load": mean_load_normalized,
             "problems_attempted": sub_count,
             "problems_solved": solved_count,
         })
@@ -126,9 +134,11 @@ def get_all_sessions_summary(db: Session, limit: int = 100, offset: int = 0) -> 
 
 
 def get_aggregate_stats(db: Session) -> dict:
+    avg_effort = db.execute(select(func.avg(models.EffortLabel.rating_1_7))).scalar()
+    mean_load_score = round((avg_effort - 1) / 6, 3) if avg_effort is not None else None
     return {
         "total_sessions": db.execute(select(func.count()).select_from(models.Session)).scalar(),
         "total_events": db.execute(select(func.count()).select_from(models.Event)).scalar(),
         "total_users": db.execute(select(func.count()).select_from(models.User)).scalar(),
-        "mean_load_score": None,
+        "mean_load_score": mean_load_score,
     }
