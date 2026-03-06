@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -9,8 +10,17 @@ from app.db import Base, get_db
 
 @pytest.fixture()
 def test_db():
-    """Create an in-memory SQLite database for each test."""
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    """Create an in-memory SQLite database for each test.
+
+    StaticPool ensures all sessions share the same connection so that
+    tables created by create_all() are visible to subsequent queries
+    (in-memory SQLite databases are per-connection by default).
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
     TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestingSession()
