@@ -99,6 +99,38 @@ def feature_correlations(db: Session = Depends(get_db)):
     return {"correlations": correlations, "sample_size": n}
 
 
+@router.get("/ab_results")
+def ab_results(db: Session = Depends(get_db)):
+    """Aggregate variant stats across all experiments for the dashboard."""
+    variants: dict = {}
+
+    experiments = db.execute(select(models.Experiment)).scalars().all()
+    for exp in experiments:
+        assignments = db.execute(
+            select(models.ExperimentAssignment).where(
+                models.ExperimentAssignment.experiment_id == exp.id
+            )
+        ).scalars().all()
+
+        for a in assignments:
+            v = a.variant
+            if v not in variants:
+                variants[v] = {"sessions": 0, "total_submissions": 0, "correct_submissions": 0, "completion_rate": 0.0}
+            variants[v]["sessions"] += 1
+
+            subs = db.execute(
+                select(models.Submission).where(models.Submission.session_id == a.session_id)
+            ).scalars().all()
+            variants[v]["total_submissions"] += len(subs)
+            variants[v]["correct_submissions"] += sum(1 for s in subs if s.correct)
+
+    for v in variants.values():
+        total = v["total_submissions"]
+        v["completion_rate"] = round(v["correct_submissions"] / total, 3) if total > 0 else 0.0
+
+    return {"variants": variants}
+
+
 @router.get("/export/csv")
 def export_csv(db: Session = Depends(get_db)):
     events = db.execute(select(models.Event).order_by(models.Event.ts_ms)).scalars().all()
