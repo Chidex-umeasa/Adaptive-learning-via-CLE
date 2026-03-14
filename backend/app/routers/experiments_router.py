@@ -53,4 +53,29 @@ def get_experiment_results(experiment_id: str, db: Session = Depends(get_db)):
         total = v["total_submissions"]
         v["completion_rate"] = round(v["correct_submissions"] / total, 3) if total > 0 else 0.0
 
-    return {"experiment_id": experiment_id, "variants": variants}
+    # Chi-squared significance test across variants
+    p_value = None
+    significant = False
+    variant_list = list(variants.values())
+    if len(variant_list) >= 2:
+        try:
+            from scipy.stats import chi2_contingency
+            import numpy as np
+            table = [
+                [v["correct_submissions"], v["total_submissions"] - v["correct_submissions"]]
+                for v in variant_list
+                if v["total_submissions"] > 0
+            ]
+            if len(table) >= 2 and any(cell > 0 for row in table for cell in row):
+                _, p, _, _ = chi2_contingency(np.array(table))
+                p_value = round(float(p), 4)
+                significant = p_value < 0.05
+        except Exception:
+            pass
+
+    return {
+        "experiment_id": experiment_id,
+        "variants": variants,
+        "p_value": p_value,
+        "significant": significant,
+    }

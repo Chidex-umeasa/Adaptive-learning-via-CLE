@@ -30,3 +30,9 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=schemas.UserOut)
 def me(user: models.User = Depends(require_user)):
     return {"id": user.id, "email": user.email, "display_name": user.display_name}
+
+
+@router.get("/me/solved", response_model=list[str])
+def me_solved(user: models.User = Depends(require_user), db: Session = Depends(get_db)):
+    """Return all problem IDs this user has correctly solved across all sessions."""
+    return crud.get_user_solved_problem_ids(db, user.id)

@@ -127,6 +127,8 @@ class ExperimentOut(BaseModel):
 class ExperimentResultsOut(BaseModel):
     experiment_id: str
     variants: Dict[str, Any]
+    p_value: Optional[float] = None
+    significant: bool = False
 
 # --- Analytics ---
 
