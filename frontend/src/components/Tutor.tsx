@@ -11,8 +11,10 @@ import ProblemDescription from "./ProblemDescription";
 import ProblemSidebar from "./ProblemSidebar";
 import Navbar from "./Navbar";
 import type { Problem, ProblemListItem, LoadEstimate, SubmissionResult } from "../lib/types";
+import { useAuth } from "../context/AuthContext";
 
 export default function Tutor() {
+  const { isAuthenticated } = useAuth();
   const [sessionId, setSessionId] = useState<string>("");
   const [consentWebcam, setConsentWebcam] = useState(false);
   const webcamBuf = useRef<any[]>([]);
@@ -32,6 +34,14 @@ export default function Tutor() {
   useEffect(() => {
     setSessionId(window.crypto.randomUUID());
   }, []);
+
+  // Load persisted solved problems for authenticated users
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getJSON("/auth/me/solved")
+      .then((ids: string[]) => setSolvedIds(new Set(ids)))
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   const telemetry = useMemo(() => {
     return sessionId ? new Telemetry(sessionId) : null;

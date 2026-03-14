@@ -1,5 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session as DBSession
 from .db import Base, engine, get_db
 from .settings import settings
@@ -10,8 +15,20 @@ from .routers.auth_router import router as auth_router
 from .routers.problems_router import router as problems_router
 from .routers.experiments_router import router as experiments_router
 from .routers.analytics_router import router as analytics_router
+from .routers.admin_router import router as admin_router
 
-app = FastAPI(title=settings.APP_NAME)
+limiter = Limiter(key_func=get_remote_address)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,11 +42,7 @@ app.include_router(auth_router)
 app.include_router(problems_router)
 app.include_router(experiments_router)
 app.include_router(analytics_router)
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
+app.include_router(admin_router)
 
 
 @app.get("/health")
@@ -50,14 +63,16 @@ def create_session(
 
 
 @app.post("/events/batch")
-def ingest_events(payload: schemas.EventsBatchIn, db: DBSession = Depends(get_db)):
+@limiter.limit("120/minute")
+def ingest_events(request: Request, payload: schemas.EventsBatchIn, db: DBSession = Depends(get_db)):
     crud.add_events(db, payload.session_id, [e.model_dump() for e in payload.events])
     db.commit()
     return {"ingested": len(payload.events)}
 
 
 @app.post("/webcam/batch")
-def ingest_webcam(payload: schemas.WebcamBatchIn, db: DBSession = Depends(get_db)):
+@limiter.limit("60/minute")
+def ingest_webcam(request: Request, payload: schemas.WebcamBatchIn, db: DBSession = Depends(get_db)):
     feats = [f.model_dump() for f in payload.features]
     crud.add_webcam_features(db, payload.session_id, feats)
     db.commit()
@@ -65,7 +80,8 @@ def ingest_webcam(payload: schemas.WebcamBatchIn, db: DBSession = Depends(get_db
 
 
 @app.post("/labels/effort")
-def ingest_effort_label(payload: schemas.EffortLabelIn, db: DBSession = Depends(get_db)):
+@limiter.limit("30/minute")
+def ingest_effort_label(request: Request, payload: schemas.EffortLabelIn, db: DBSession = Depends(get_db)):
     if not (1 <= payload.rating_1_7 <= 7):
         raise HTTPException(status_code=400, detail="rating_1_7 must be 1..7")
     crud.add_effort_label(db, payload.session_id, payload.ts_ms, payload.rating_1_7)

@@ -1,6 +1,6 @@
 # Adaptive Learning via Cognitive Load Estimation
 
-[![CI](https://github.com/yourusername/adaptive-load-tutor/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/adaptive-load-tutor/actions)
+[![CI](https://github.com/Space-Paragon1/Adaptive-learning-via-CLE/actions/workflows/ci.yml/badge.svg)](https://github.com/Space-Paragon1/Adaptive-learning-via-CLE/actions)
 
 An AI-driven, web-based CS tutoring system that **estimates learners' cognitive load in real time** using interaction telemetry and privacy-preserving webcam features, then **adapts instruction dynamically** to optimize learning outcomes.
 
@@ -9,40 +9,41 @@ An AI-driven, web-based CS tutoring system that **estimates learners' cognitive 
 ```mermaid
 graph LR
     A[Browser] -->|Telemetry + Webcam| B[FastAPI]
-    B -->|Store| C[(PostgreSQL)]
+    B -->|Store| C[(SQLite / PostgreSQL)]
     B -->|Features| D[ML Model]
     D -->|Load Score| B
     B -->|Adaptive Response| A
-    E[ML Pipeline] -->|Train| D
+    E[ML Pipeline] -->|Train / Retrain| D
 ```
-
-> See [docs/architecture.md](docs/architecture.md) for full system documentation and [docs/diagrams/](docs/diagrams/) for Mermaid source files.
 
 ## Features
 
 - **Real-time cognitive load estimation** from 14 behavioral + visual signals
-- **Adaptive problem sequencing** — difficulty adjusts based on estimated load
+- **Adaptive problem sequencing** — difficulty adjusts based on estimated load (LOW → harder, HIGH → easier)
 - **Privacy-first webcam processing** — Face Mesh runs in-browser, only 6 numeric features transmitted
-- **17 CS problems** across 5 categories (basics, strings, arrays, recursion, data structures)
-- **ML training pipeline** — GradientBoosting/RandomForest/Ridge with 5-fold CV
-- **A/B testing framework** — deterministic hash-based variant assignment for research
+- **39 CS problems** across 8 categories (basics, strings, arrays, sorting, recursion, dynamic programming, data structures, OOP)
+- **ML training pipeline** — GradientBoosting / RandomForest / Ridge with 5-fold CV
+- **Admin retraining endpoint** — `POST /admin/retrain` exports real labeled data and hot-swaps the model
+- **A/B testing framework** — deterministic hash-based variant assignment with chi-squared significance testing
 - **Research dashboard** — load timelines, feature correlations, experiment comparisons
-- **JWT authentication** with multi-user session tracking
-- **Docker deployment** — one command startup with PostgreSQL
+- **JWT authentication** with persistent solved-problem tracking across sessions
+- **Rate limiting** on all ingestion endpoints (slowapi)
+- **Error boundaries** on frontend to prevent full-page crashes
+- **Docker deployment** — one-command startup with PostgreSQL
 
 ## Quick Start
 
 ### Prerequisites
 
 - **Python 3.11+** (tested on 3.13)
-- **Node.js 18+** (tested on 20)
+- **Node.js 18+** (tested on 24)
 - **npm 9+**
 - **Git**
 
 ### Option 1: Docker (Recommended)
 ```bash
-git clone https://github.com/yourusername/adaptive-load-tutor.git
-cd adaptive-load-tutor
+git clone https://github.com/Space-Paragon1/Adaptive-learning-via-CLE.git
+cd Adaptive-learning-via-CLE
 docker compose up
 # Open http://localhost:3000
 ```
@@ -64,39 +65,51 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Start the API server
-uvicorn app.main:app --reload --port 8000
+# Start the API server (use venv Python explicitly on Windows)
+.venv\Scripts\uvicorn app.main:app --reload --port 8000
 # API docs at http://localhost:8000/docs
 ```
+
+> **Windows / OneDrive note:** If you see `OSError: [Errno 22] Invalid argument` on startup,
+> run `.venv\Scripts\pip install --force-reinstall anyio websockets` to fix broken OneDrive
+> placeholder files, then retry. Also right-click the project folder in Explorer →
+> "Always keep on this device" to prevent recurrence.
 
 #### Frontend (new terminal)
 ```bash
 cd frontend
-
-# Install dependencies (use --legacy-peer-deps if you hit peer conflicts)
 npm install --legacy-peer-deps
-
-# Start the dev server
 npm run dev
 # Open http://localhost:3000
 ```
 
 #### First Use
-1. Open http://localhost:3000 in your browser
-2. Click the **Register** tab on the login modal
-3. Enter any email, display name, and password to create an account
-4. Start solving problems — the system adapts in real time
+1. Open http://localhost:3000
+2. Click **Register** and create an account
+3. Start solving problems — the system adapts difficulty in real time based on your cognitive load
+4. Rate your effort (1–7 slider) to contribute labeled training data
+5. Visit http://localhost:3000/dashboard for analytics
 
 ### ML Pipeline
+
+#### Option A — Synthetic bootstrap (no real data needed)
 ```bash
 cd ml
 pip install -r requirements.txt
 python generate_synthetic_data.py   # Generate 600 synthetic training samples
-python train.py                      # Train + evaluate models (5-fold CV)
+python train.py                      # Train + evaluate (5-fold CV)
 # Best model saved to ml/artifacts/load_model.joblib
 ```
 
-Once the model is trained, the backend automatically loads it from `ml/artifacts/load_model.joblib` and uses ML-based predictions instead of the heuristic fallback.
+#### Option B — Retrain on real collected data (via API)
+```bash
+# Once users have submitted effort ratings, call the admin endpoint:
+curl -X POST http://localhost:8000/admin/retrain
+# Exports real labeled data from DB → retrains → hot-swaps model in-process
+# Requires >= 10 labeled samples (effort ratings submitted by users)
+```
+
+Once trained, the backend automatically loads the model and uses ML predictions instead of the heuristic fallback.
 
 ## Tech Stack
 
@@ -105,8 +118,9 @@ Once the model is trained, the backend automatically loads it from `ml/artifacts
 | Frontend | Next.js 16, TypeScript, Tailwind CSS 3, Recharts |
 | Backend | FastAPI 0.115, SQLAlchemy 2.0, Pydantic 2.x |
 | Auth | JWT (python-jose) + bcrypt |
+| Rate Limiting | slowapi |
 | Database | SQLite (dev) / PostgreSQL 16 (prod) |
-| ML | scikit-learn, pandas, numpy, joblib |
+| ML | scikit-learn, scipy, pandas, numpy, joblib |
 | Webcam | FaceMesh (in-browser), EAR blink detection |
 | CI/CD | GitHub Actions, Docker Compose, pytest |
 | Migrations | Alembic |
@@ -125,6 +139,21 @@ Once the model is trained, the backend automatically loads it from `ml/artifacts
 | Blink rate | Webcam (EAR) | Fatigue / cognitive effort |
 | Head motion | Webcam | Restlessness / frustration |
 
+## Problem Bank
+
+39 problems across 8 categories and 5 difficulty levels:
+
+| Category | Count | Difficulty |
+|----------|-------|-----------|
+| Basics | 6 | 1 |
+| Strings | 6 | 2 |
+| Arrays | 7 | 3 |
+| Sorting | 2 | 3 |
+| Recursion | 6 | 4 |
+| Dynamic Programming | 2 | 4 |
+| Data Structures | 7 | 5 |
+| Strings (advanced) | 3 | 5 |
+
 ## Project Structure
 
 ```
@@ -133,103 +162,129 @@ adaptive-load-tutor/
 ├── .env.example                       # Environment variable template
 ├── docker-compose.yml                 # One-command deployment
 ├── backend/
-│   ├── Dockerfile
 │   ├── requirements.txt               # Production dependencies
 │   ├── requirements-dev.txt           # Test dependencies (pytest, httpx)
 │   ├── pytest.ini
 │   ├── alembic.ini
 │   ├── alembic/                       # Database migrations
-│   ├── app/
-│   │   ├── main.py                    # FastAPI app + routes
-│   │   ├── auth.py                    # JWT + bcrypt authentication
-│   │   ├── models.py                  # 8 ORM models
-│   │   ├── schemas.py                 # Pydantic request/response schemas
-│   │   ├── crud.py                    # Database operations
-│   │   ├── db.py                      # Engine + session factory
-│   │   ├── settings.py                # Pydantic settings (env vars)
-│   │   ├── features.py                # Load aggregation + heuristic scoring
-│   │   ├── ml_inference.py            # ML model loading + prediction
-│   │   ├── problems.py                # 17-problem bank
-│   │   ├── sequencer.py               # Adaptive problem selection + JS eval
-│   │   ├── ab_testing.py              # A/B experiment engine
-│   │   └── routers/                   # auth, problems, analytics, experiments
-│   └── tests/                         # pytest suite (10 test files)
+│   └── app/
+│       ├── main.py                    # FastAPI app + lifespan + rate limiting
+│       ├── auth.py                    # JWT + bcrypt authentication
+│       ├── models.py                  # 8 ORM models (UTC-aware datetimes)
+│       ├── schemas.py                 # Pydantic request/response schemas
+│       ├── crud.py                    # Database operations
+│       ├── db.py                      # Engine + session factory (SA 2.0 style)
+│       ├── settings.py                # Pydantic settings (env vars)
+│       ├── features.py                # Load aggregation + heuristic scoring
+│       ├── ml_inference.py            # ML model loading + prediction + hot-swap
+│       ├── problems.py                # 39-problem bank
+│       ├── sequencer.py               # Adaptive problem selection + JS eval
+│       ├── ab_testing.py              # A/B experiment engine
+│       └── routers/
+│           ├── auth_router.py         # register, login, /me, /me/solved
+│           ├── problems_router.py     # list, detail, next, submit
+│           ├── analytics_router.py    # sessions, aggregate, timeline, correlations
+│           ├── experiments_router.py  # create, results (+ chi-squared p-value)
+│           └── admin_router.py        # retrain, retrain/status
 ├── frontend/
-│   ├── Dockerfile
-│   ├── next.config.js                 # Next.js + Turbopack config
-│   ├── tailwind.config.ts             # Tailwind theme (load-level colors)
-│   ├── postcss.config.js
-│   ├── jest.config.ts
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── layout.tsx             # Root layout with AuthProvider
-│   │   │   ├── page.tsx               # Entry point (auth gate + tutor)
-│   │   │   ├── globals.css            # Tailwind directives
+│   │   │   ├── page.tsx               # Entry point (auth gate + ErrorBoundary)
 │   │   │   └── dashboard/page.tsx     # Analytics dashboard
 │   │   ├── components/
-│   │   │   ├── Tutor.tsx              # Main two-column tutor UI
+│   │   │   ├── Tutor.tsx              # Main tutor UI (loads persistent solved IDs)
 │   │   │   ├── CodeEditor.tsx         # Editor with keystroke metrics
 │   │   │   ├── LoadGauge.tsx          # SVG cognitive load gauge
-│   │   │   ├── WebcamFeatures.tsx     # Real webcam integration
-│   │   │   ├── ProblemDescription.tsx # Problem display
-│   │   │   ├── ProblemSidebar.tsx     # Problem list with status
-│   │   │   ├── HintPanel.tsx          # Progressive hints
-│   │   │   ├── AuthModal.tsx          # Login/Register modal
-│   │   │   ├── Navbar.tsx             # Top navigation bar
-│   │   │   └── dashboard/            # Analytics components (5 files)
-│   │   ├── context/AuthContext.tsx     # Auth state management
+│   │   │   ├── WebcamFeatures.tsx     # Webcam integration (consent-gated)
+│   │   │   ├── ErrorBoundary.tsx      # Catches runtime errors gracefully
+│   │   │   ├── ProblemDescription.tsx
+│   │   │   ├── ProblemSidebar.tsx
+│   │   │   ├── HintPanel.tsx
+│   │   │   ├── AuthModal.tsx
+│   │   │   ├── Navbar.tsx
+│   │   │   └── dashboard/             # 5 analytics chart components
+│   │   ├── context/AuthContext.tsx
 │   │   └── lib/
-│   │       ├── api.ts                 # API client with auth headers
-│   │       ├── faceMeshProcessor.ts   # Webcam feature extraction
-│   │       └── types.ts              # Shared TypeScript types
-│   └── src/__tests__/                 # Jest test suite
+│   │       ├── api.ts
+│   │       ├── faceMeshProcessor.ts
+│   │       └── types.ts
+│   └── src/__tests__/                 # Jest test suite (2 files)
 ├── ml/
-│   ├── requirements.txt
 │   ├── train_config.yaml              # Model hyperparameters
 │   ├── generate_synthetic_data.py     # Bootstrap 600 training samples
-│   ├── export_training_data.py        # Extract from database
-│   ├── train.py                       # Model training + evaluation
+│   ├── export_training_data.py        # Extract from database → CSV
+│   ├── train.py                       # Training + 5-fold CV + artifact export
 │   └── artifacts/                     # Saved models + reports + plots
 └── docs/
-    ├── architecture.md                # System documentation + API reference
-    ├── RESEARCH_PROTOCOL.md           # Study design + IRB considerations
-    └── diagrams/                      # Mermaid architecture diagrams
+    ├── architecture.md
+    ├── RESEARCH_PROTOCOL.md
+    └── diagrams/
+```
+
+## API Reference
+
+Full interactive docs at **http://localhost:8000/docs**
+
+### Auth
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/auth/register` | Create account → JWT |
+| POST | `/auth/login` | Login → JWT |
+| GET | `/auth/me` | Current user info |
+| GET | `/auth/me/solved` | Problem IDs solved across all sessions |
+
+### Tutoring
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/sessions` | Create/update session |
+| POST | `/events/batch` | Ingest telemetry (120 req/min limit) |
+| POST | `/webcam/batch` | Ingest webcam features (60 req/min limit) |
+| POST | `/labels/effort` | Submit effort rating 1–7 (30 req/min limit) |
+| GET | `/load/{session_id}` | Get cognitive load estimate |
+| GET | `/problems` | List all 39 problems |
+| GET | `/problems/{id}` | Problem detail with hints |
+| GET | `/problems/next/{session_id}` | Adaptive next problem |
+| POST | `/problems/submit` | Submit + evaluate solution |
+
+### Analytics & Research
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/analytics/aggregate` | Global stats (sessions, events, mean load) |
+| GET | `/analytics/sessions` | Session summaries with mean load |
+| GET | `/analytics/sessions/{id}/timeline` | Load over time for a session |
+| GET | `/analytics/feature_correlations` | Pearson r per feature vs effort |
+| GET | `/analytics/ab_results` | Variant comparison across all experiments |
+| GET | `/analytics/export/csv` | Stream all events as CSV |
+| POST | `/experiments` | Create A/B experiment |
+| GET | `/experiments/{id}/results` | Variant stats + chi-squared p-value |
+
+### Admin
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/admin/retrain` | Export real data → retrain → hot-swap model |
+| GET | `/admin/retrain/status` | Check model artifact age |
+
+## Running Tests
+
+```bash
+# Backend — 34 tests, all passing
+cd backend
+pip install -r requirements-dev.txt
+pytest -v
+
+# Frontend
+cd frontend
+npm test
 ```
 
 ## Research Design
 
 This system supports formal A/B studies comparing adaptive vs. static tutoring. See [docs/RESEARCH_PROTOCOL.md](docs/RESEARCH_PROTOCOL.md) for:
-- Between-subjects study design (Control / Heuristic / ML Model)
-- Participant criteria and recruitment protocol
+- Between-subjects study design (Control / Heuristic / ML / Full-Adaptive variants)
 - Measures: learning gain, time-to-correct, completion rate, hint usage
-- Statistical analysis plan (ANOVA, effect sizes, feature correlations)
+- Statistical analysis: chi-squared significance on A/B results, Pearson correlations
 - IRB considerations and privacy safeguards
-
-## API Documentation
-
-The API is fully documented via FastAPI's auto-generated OpenAPI docs:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Key Endpoints
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/auth/register` | Create account |
-| POST | `/auth/login` | Get JWT token |
-| GET | `/auth/me` | Get current user |
-| POST | `/sessions` | Create/update session |
-| POST | `/events/batch` | Ingest telemetry events |
-| POST | `/webcam/batch` | Ingest webcam features |
-| GET | `/load/{session_id}` | Get cognitive load estimate |
-| GET | `/problems` | List all problems |
-| GET | `/problems/next/{session_id}` | Get adaptive next problem |
-| POST | `/problems/submit` | Submit solution |
-| GET | `/analytics/sessions` | Session summaries |
-| GET | `/analytics/aggregate` | Global statistics |
-| GET | `/analytics/export/csv` | Export data as CSV |
-
-See [docs/architecture.md](docs/architecture.md) for the complete endpoint reference.
 
 ## Ethics & Privacy
 
@@ -239,32 +294,24 @@ See [docs/architecture.md](docs/architecture.md) for the complete endpoint refer
 - **Anonymized sessions** — random UUIDs, no PII in telemetry
 - **Data minimization** — designed for IRB-compatible research deployment
 
-## Running Tests
-
-```bash
-# Backend (from backend/ with venv activated)
-pip install -r requirements-dev.txt
-pytest --cov=app -v
-
-# Frontend (from frontend/)
-npm test
-```
-
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|---------|
+| `OSError: [Errno 22] Invalid argument` on startup | OneDrive placeholder files: run `.venv\Scripts\pip install --force-reinstall anyio websockets` |
+| `no such column: sessions.user_id` | Stale SQLite DB: run `ALTER TABLE sessions ADD COLUMN user_id VARCHAR` or delete `adaptive_load.db` |
+| Port 3000 already in use | Run `Stop-Process -Id <pid> -Force` or use `npm run dev -- --port 3001` |
 | `Cannot find module 'tailwindcss'` | Run `npm install --legacy-peer-deps` in frontend/ |
-| `passlib` / bcrypt errors on Python 3.13 | Already fixed — uses `bcrypt` directly, not `passlib` |
-| Hydration mismatch on `<body>` | Caused by browser extensions (Grammarly, MetaMask) — harmless, suppressed |
-| `ERESOLVE` peer dependency conflict | Use `npm install --legacy-peer-deps` |
-| `Failed to fetch` on register/login | Ensure backend is running on port 8000 |
+| `Failed to fetch` on login | Ensure backend is running on port 8000 |
+| `passlib` / bcrypt errors on Python 3.13 | Already fixed — uses `bcrypt` directly |
 | Turbopack config warning | Already fixed — `turbopack: {}` in next.config.js |
+| `ERESOLVE` peer conflict | Use `npm install --legacy-peer-deps` |
 
 ## Author
 
 **Alex Chidera Umeasalugo**
 Undergraduate Computer Science Researcher
+Grambling State University
 Interests: AI for Education, Intelligent Tutoring Systems, Human-Centered AI, Distributed Systems
 
 ## License

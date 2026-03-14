@@ -1,6 +1,10 @@
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, ForeignKey, JSON, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
 from uuid import uuid4
 from .db import Base
 
@@ -12,7 +16,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     sessions = relationship("Session", back_populates="user")
 
@@ -21,7 +25,7 @@ class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     user_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
 
     consent_telemetry: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -91,7 +95,7 @@ class Submission(Base):
     correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
     tests_passed: Mapped[int] = mapped_column(Integer, default=0)
     tests_total: Mapped[int] = mapped_column(Integer, default=0)
-    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     session = relationship("Session", back_populates="submissions")
 
@@ -105,7 +109,7 @@ class Experiment(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     assignments = relationship("ExperimentAssignment", back_populates="experiment")
 

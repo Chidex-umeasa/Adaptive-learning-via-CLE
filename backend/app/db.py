@@ -12,7 +12,7 @@ engine = create_engine(
     connect_args=connect_args,
     pool_pre_ping=True,
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(engine, autocommit=False, autoflush=False)
 
 class Base(DeclarativeBase):
     pass

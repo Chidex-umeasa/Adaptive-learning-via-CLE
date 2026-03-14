@@ -17,6 +17,14 @@ def get_model():
     return _model, _feature_names
 
 
+def reload_model():
+    """Force reload model from disk (call after retraining)."""
+    global _model, _feature_names
+    _model = None
+    _feature_names = None
+    return get_model()
+
+
 def predict_load(features: dict) -> tuple[float, float, str, str | None]:
     model, feature_names = get_model()
     if model is None:

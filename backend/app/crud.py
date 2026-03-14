@@ -67,6 +67,20 @@ def get_solved_problem_ids(db: Session, session_id: str) -> set[str]:
     return set(rows)
 
 
+def get_user_solved_problem_ids(db: Session, user_id: str) -> list[str]:
+    """Return all problem IDs correctly solved by a user across all their sessions."""
+    rows = db.execute(
+        select(models.Submission.problem_id)
+        .join(models.Session, models.Submission.session_id == models.Session.id)
+        .where(
+            models.Session.user_id == user_id,
+            models.Submission.correct == True,
+        )
+        .distinct()
+    ).scalars().all()
+    return list(rows)
+
+
 # --- Experiments ---
 
 def create_experiment(db: Session, name: str, config: dict) -> models.Experiment:
