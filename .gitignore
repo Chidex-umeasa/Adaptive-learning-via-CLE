@@ -91,6 +91,17 @@ $RECYCLE.BIN/
 # =========================
 coverage/
 htmlcov/
+.coverage
+.coverage.*
+
+# =========================
+# ML artifacts
+# =========================
+ml/training_data.csv
+ml/artifacts/*.joblib
+ml/artifacts/*.json
+ml/artifacts/plots/*.png
+!ml/artifacts/plots/.gitkeep
 
 # =========================
 # Jupyter / experiments
