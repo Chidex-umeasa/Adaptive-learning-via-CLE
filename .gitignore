@@ -69,6 +69,11 @@ frontend/out/
 frontend/node_modules/
 
 # =========================
+# Claude Code
+# =========================
+.claude/
+
+# =========================
 # IDEs & Editors
 # =========================
 .vscode/
