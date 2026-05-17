@@ -1,4 +1,4 @@
-"use client";
+git "use client";
 
 import { useRef, useCallback, useEffect } from "react";
 
@@ -10,9 +10,10 @@ interface CodeEditorProps {
     deletes: number;
     pause_mean_ms: number;
   }) => void;
+  onSubmit?: () => void;
 }
 
-export default function CodeEditor({ value, onChange, onKeystrokeMetrics }: CodeEditorProps) {
+export default function CodeEditor({ value, onChange, onKeystrokeMetrics, onSubmit }: CodeEditorProps) {
   const prevLenRef = useRef(value.length);
   const keystrokeTimes = useRef<number[]>([]);
   const deletesRef = useRef(0);
@@ -36,6 +37,16 @@ export default function CodeEditor({ value, onChange, onKeystrokeMetrics }: Code
       onChange(newVal);
     },
     [onChange]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        onSubmit?.();
+      }
+    },
+    [onSubmit]
   );
 
   useEffect(() => {
@@ -69,12 +80,20 @@ export default function CodeEditor({ value, onChange, onKeystrokeMetrics }: Code
   }, [onKeystrokeMetrics]);
 
   return (
-    <textarea
-      value={value}
-      onChange={handleChange}
-      spellCheck={false}
-      className="w-full min-h-[300px] p-4 bg-slate-950 border border-slate-700 rounded-lg font-mono text-sm text-green-300 resize-y focus:outline-none focus:border-blue-500 transition leading-relaxed"
-      placeholder="Write your solution here..."
-    />
+    <div className="relative">
+      <textarea
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        spellCheck={false}
+        className="w-full min-h-[300px] p-4 bg-slate-950 border border-slate-700 rounded-lg font-mono text-sm text-green-300 resize-y focus:outline-none focus:border-blue-500 transition leading-relaxed"
+        placeholder="Write your solution here..."
+      />
+      {onSubmit && (
+        <div className="absolute bottom-2 right-3 text-[10px] text-gray-600 pointer-events-none select-none">
+          Ctrl+Enter to submit
+        </div>
+      )}
+    </div>
   );
 }

@@ -13,6 +13,13 @@ import Navbar from "./Navbar";
 import type { Problem, ProblemListItem, LoadEstimate, SubmissionResult } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
 
+interface UserStats {
+  problems_solved: number;
+  total_problems: number;
+  total_submissions: number;
+  accuracy: number;
+}
+
 export default function Tutor() {
   const { isAuthenticated } = useAuth();
   const [sessionId, setSessionId] = useState<string>("");
@@ -27,6 +34,7 @@ export default function Tutor() {
   const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState<SubmissionResult | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
 
   const [effort, setEffort] = useState(4);
 
@@ -35,11 +43,14 @@ export default function Tutor() {
     setSessionId(window.crypto.randomUUID());
   }, []);
 
-  // Load persisted solved problems for authenticated users
+  // Load persisted solved problems and stats for authenticated users
   useEffect(() => {
     if (!isAuthenticated) return;
     getJSON("/auth/me/solved")
       .then((ids: string[]) => setSolvedIds(new Set(ids)))
+      .catch(() => {});
+    getJSON("/auth/me/stats")
+      .then((s: UserStats) => setUserStats(s))
       .catch(() => {});
   }, [isAuthenticated]);
 
@@ -145,6 +156,10 @@ export default function Tutor() {
 
       if (result.correct) {
         setSolvedIds((prev) => new Set([...prev, currentProblem.id]));
+        // Refresh stats after solving
+        getJSON("/auth/me/stats")
+          .then((s: UserStats) => setUserStats(s))
+          .catch(() => {});
       }
     } catch (err: any) {
       setLastResult({ correct: false, tests_passed: 0, tests_total: 0, errors: [err.message], next_problem_id: null });
@@ -184,6 +199,30 @@ export default function Tutor() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
+      {isAuthenticated && userStats && (
+        <div className="bg-slate-900 border-b border-slate-800 px-6 py-2 flex items-center gap-6 text-xs text-gray-400">
+          <span>
+            Solved:{" "}
+            <span className="text-green-400 font-semibold">
+              {userStats.problems_solved}/{userStats.total_problems}
+            </span>
+          </span>
+          <div className="flex-1 max-w-xs h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-500"
+              style={{ width: `${(userStats.problems_solved / userStats.total_problems) * 100}%` }}
+            />
+          </div>
+          <span>
+            Submissions: <span className="text-white font-medium">{userStats.total_submissions}</span>
+          </span>
+          <span>
+            Accuracy:{" "}
+            <span className="text-blue-400 font-semibold">{(userStats.accuracy * 100).toFixed(0)}%</span>
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 flex">
         {/* Left sidebar — problem list */}
         <aside className="w-56 bg-slate-800/50 border-r border-slate-700 p-4 overflow-y-auto hidden lg:block">
@@ -204,7 +243,7 @@ export default function Tutor() {
             </div>
 
             <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-              <CodeEditor value={code} onChange={setCode} onKeystrokeMetrics={onKeystrokeMetrics} />
+              <CodeEditor value={code} onChange={setCode} onKeystrokeMetrics={onKeystrokeMetrics} onSubmit={handleSubmit} />
 
               <div className="flex items-center gap-3 mt-4 flex-wrap">
                 <button
@@ -216,6 +255,15 @@ export default function Tutor() {
                   {submitting ? "Running..." : "Submit"}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={loadNextProblem}
+                  disabled={submitting}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-gray-300 rounded-lg text-sm font-medium transition"
+                >
+                  Skip
+                </button>
+
                 {lastResult && (
                   <div className={`text-sm font-medium ${lastResult.correct ? "text-green-400" : "text-red-400"}`}>
                     {lastResult.correct
@@ -224,7 +272,7 @@ export default function Tutor() {
                   </div>
                 )}
 
-                {lastResult?.correct && lastResult.next_problem_id && (
+                {lastResult?.correct && (
                   <button
                     type="button"
                     onClick={loadNextProblem}
