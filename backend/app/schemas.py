@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Any, Dict, List, Optional
 
 # --- Auth ---
@@ -7,6 +7,24 @@ class UserRegister(BaseModel):
     email: str
     password: str
     display_name: str
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one number")
+        if not any(c.isalpha() for c in v):
+            raise ValueError("Password must contain at least one letter")
+        return v
+
+    @field_validator("display_name")
+    @classmethod
+    def display_name_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Display name cannot be empty")
+        return v.strip()
 
 class UserLogin(BaseModel):
     email: str
@@ -146,3 +164,9 @@ class AggregateStats(BaseModel):
     total_events: int
     total_users: int
     mean_load_score: Optional[float] = None
+
+class UserStats(BaseModel):
+    problems_solved: int
+    total_problems: int
+    total_submissions: int
+    accuracy: float

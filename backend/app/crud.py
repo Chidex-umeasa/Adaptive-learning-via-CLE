@@ -156,3 +156,26 @@ def get_aggregate_stats(db: Session) -> dict:
         "total_users": db.execute(select(func.count()).select_from(models.User)).scalar(),
         "mean_load_score": mean_load_score,
     }
+
+
+def get_user_stats(db: Session, user_id: str, total_problems: int) -> dict:
+    total_subs = db.execute(
+        select(func.count()).select_from(models.Submission)
+        .join(models.Session, models.Submission.session_id == models.Session.id)
+        .where(models.Session.user_id == user_id)
+    ).scalar() or 0
+
+    correct_subs = db.execute(
+        select(func.count()).select_from(models.Submission)
+        .join(models.Session, models.Submission.session_id == models.Session.id)
+        .where(models.Session.user_id == user_id, models.Submission.correct == True)
+    ).scalar() or 0
+
+    solved_ids = get_user_solved_problem_ids(db, user_id)
+
+    return {
+        "problems_solved": len(solved_ids),
+        "total_problems": total_problems,
+        "total_submissions": total_subs,
+        "accuracy": round(correct_subs / total_subs, 3) if total_subs > 0 else 0.0,
+    }
